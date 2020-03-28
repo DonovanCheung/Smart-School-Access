@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Smart Access By High Five - ATT Case Hacks</title>
+  <link href="/static/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/vendor/datatables/dataTables.bootstrap4.css" rel="stylesheet">
+  <style>
+    table.dataTable thead th {
+      border-bottom: 0;
+      border-top: 0;
+    }
+    table.dataTable tfoot th,tr {
+      border-top: 0;
+      border-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+<div class="container-fluid">
+  <div class="jumbotron" style="background-color: #1a2027; color: #DCDCDC">
+    <img height="50" style="display: block; margin-left: auto; margin-right: auto; width: 50%;" src="https://www.business.att.com/content/dam/attbusiness/global/att-logo-mobile.svg">
+    <h2 style='text-align: center;'>Smart Access By High Five - ATT Case Hacks</h2><br><br>
+    <h3 style='text-align: center;'>Admin Dashboard</h3><br>
+    <hr color="blue">
+    <div style="text-align: center;">
+      <h4 style="color: #00A8E0">Grant Access</h4>
+      <br>
+      User ID: <input type="text" id="user_id" name="user_id" placeholder="" style="margin: 2px; width: 100px;">
+      Lock ID: <input type="text" id="lock_id" name="lock_id" placeholder="" style="margin: 2px; width: 100px;">
+      FirstNet: <input type="text" id="is_firstnet_user" name="is_firstnet_user" placeholder="true or false" style="margin: 2px; width: 100px;">
+      Duration: <input type="text" id="access_time" name="access_time" placeholder="" style="margin: 2px; width: 100px;">
+      <input type="submit" class="btn btn-primary" onclick="grant_access()" value="Submit" style="margin: 2px;background-color: #00A8E0">
+      <div id="output_text_id"></div>
+    </div>
+    <hr color="blue">
+    <div style="text-align: center;">
+      <h4 style="color: #00A8E0">Emergency Protocol</h4>
+      <br>
+      Current Status: <p id='emergency_status' style="display: inline">{{ emergency_status }}</p>
+      <input type="submit" class="btn btn-primary" onclick="emergency_lockdown()" value="Reset" style="display: inline; background-color: #00A8E0">
+    </div>
+    <hr color="blue">
+    <div style="text-align: center;">
+      <h4 style="color: #00A8E0">Access Info</h4>
+      <br>
+      <input type="submit" class="btn btn-primary" onclick="refresh_access_info()" value="Refresh" style="display: inline; float: right;background-color: #00A8E0">
+      <table id="smart-access-table" class="display table table-hover" style="table-layout: fixed;width: 100%;border-top: 0px;">
+        <thead style="border-top: 0px;">
+        <tr>
+          <th style="width: 33%;border-top: 0px;">Lock ID</th>
+          <th style="width: 33%;border-top: 0px;">User ID</th>
+          <th style="width: 34%;border-top: 0px;">First Net User</th>
+          <th style="width: 34%;border-top: 0px;">Access Until</th>
+        </tr>
+        </thead>
+      </table>
+    </div>
+    <hr color="blue">
+    <div style="text-align: center;">
+      <h4 style="color: #00A8E0">Audit Logs</h4>
+      <br>
+      <input type="submit" class="btn btn-primary" onclick="refresh_audit_log()" value="Refresh" style="display: inline; float: right;background-color: #00A8E0">
+      <table id="audit-log-table" class="display table table-hover" style="table-layout: fixed;width: 100%">
+        <thead>
+        <tr>
+          <th style="width: 50%;border-top: 0px;">Timestamp</th>
+          <th style="width: 50%;border-top: 0px;">Action</th>
+        </tr>
+        </thead>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+<script src="/static/vendor/jquery/jquery.min.js"></script>
+<script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/static/vendor/jquery-easing/jquery.easing.min.js"></script>
+<script src="/static/vendor/chart.js/Chart.min.js"></script>
+<script src="/static/vendor/datatables/jquery.dataTables.js"></script>
+<script src="/static/vendor/datatables/dataTables.bootstrap4.js"></script>
+<script>
+  $(document).ready(function(){
+    $.fn.dataTable.ext.errMode = 'none';
+    get_access_info();
+    get_audit_log();
+  });
+
+  function grant_access() {
+    let user_id = $('#user_id').val();
+    let lock_id = $('#lock_id').val();
+    let access_time = $('#access_time').val();
+    let is_firstnet_user = $('#is_firstnet_user').val();
+    $.ajax({
+      url: '/att_case_hacks/smart_access/grant?',
+      type: 'POST',
+      data: {
+        user_id: user_id,
+        lock_id: lock_id,
+        access_time: access_time,
+        is_firstnet_user: is_firstnet_user
+      },
+      success: function(data) {
+        $('#output_text_id').html('Saved!');
+      },
+      error: function (data) {
+      }
+    });
+  }
+
+  function emergency_lockdown(){
+    let emergency_status = $('#emergency_status').html();
+    console.log(emergency_status);
+    if (emergency_status === 'false'){
+      console.log('in false');
+      emergency_status = 'true';
+    } else{
+      console.log('in true');
+      emergency_status = 'false';
+    }
+    $.ajax({
+      url: "att_case_hacks/emergency?lock="+emergency_status,
+      success: function(result){
+        console.log(result);
+        $('#emergency_status').html(emergency_status);
+      }});
+  }
+
+  function refresh_access_info() {
+    access_table.ajax.reload();
+  }
+
+  function get_access_info(){
+    access_table = $('#smart-access-table').DataTable({
+      ajax: {
+        "url": '/att_case_hacks/smart_access/fetch_all',
+        "dataSrc": "response"
+      },
+      iDisplayLength: 5,
+      order: [[0, 'desc']],
+      deferRender: true,
+      columnDefs: [
+        {
+          data: "lock_id",
+          targets: 0,
+          defaultContent: ""
+        },
+        {
+          data: "user_id",
+          targets: 1,
+          sortable: false,
+          defaultContent: ""
+        },
+        {
+          data: "is_firstnet_user",
+          targets: 2,
+          sortable: false,
+          defaultContent: ""
+        },
+        {
+          data: "access_until",
+          targets: 3,
+          sortable: false,
+          defaultContent: ""
+        }
+      ]
+    });
+  }
+
+  function refresh_audit_log() {
+    audit_table.ajax.reload();
+  }
+
+  function get_audit_log(){
+    audit_table = $('#audit-log-table').DataTable({
+      ajax: {
+        "url": '/att_case_hacks/audit_log/fetch_all',
+        "dataSrc": "response"
+      },
+      iDisplayLength: 5,
+      order: [[0, 'desc']],
+      deferRender: true,
+      columnDefs: [
+        {
+          data: "created_at",
+          targets: 0,
+          defaultContent: ""
+        },
+        {
+          data: "action",
+          targets: 1,
+          sortable: false,
+          defaultContent: ""
+        }
+      ]
+    });
+  }
+</script>
+</html>
